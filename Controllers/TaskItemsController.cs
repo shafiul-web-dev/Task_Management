@@ -22,17 +22,37 @@ namespace Task_Management.Controllers
             _context = context;
         }
 
-		// GET: api/TaskItems
+
 		[HttpGet]
-		public async Task<ActionResult<IEnumerable<TaskItem>>> GetTaskItems([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+		public async Task<ActionResult<IEnumerable<TaskItem>>> GetTaskItems(
+			[FromQuery] string priority = "All",
+			[FromQuery] int pageNumber = 1,
+			[FromQuery] int pageSize = 10)
 		{
-			return await _context.TaskItems
+			var query = _context.TaskItems.AsQueryable();
+
+			if (priority != "All")
+			{
+				query = query.Where(t => t.Priority == priority);
+			}
+
+			var totalRecords = await query.CountAsync();
+			var taskItems = await query
+				.OrderBy(t => t.Priority)
 				.Skip((pageNumber - 1) * pageSize)
 				.Take(pageSize)
 				.ToListAsync();
+
+			return Ok(new
+			{
+				TotalRecords = totalRecords,
+				PageNumber = pageNumber,
+				PageSize = pageSize,
+				Data = taskItems
+			});
 		}
 
-		// GET: api/TaskItems/5
+		
 		[HttpGet("{id}")]
         public async Task<ActionResult<TaskItem>> GetTaskItem(int id)
         {
@@ -46,43 +66,47 @@ namespace Task_Management.Controllers
             return taskItem;
         }
 
-        // PUT: api/TaskItems/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{id}")]
-        public async Task<IActionResult> PutTaskItem(int id, TaskItem taskItem)
-        {
-            if (id != taskItem.Id)
-            {
-                return BadRequest();
-            }
+		
+		[HttpPut("{id}")]
+		public async Task<IActionResult> PutTaskItem(int id, TaskItemDto taskDto)
+		{
+			var taskItem = await _context.TaskItems.FindAsync(id);
 
-            _context.Entry(taskItem).State = EntityState.Modified;
+			if (taskItem == null)
+			{
+				return NotFound(new { message = "Task item not found." });
+			}
 
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
+			// Update only the allowed fields
+			taskItem.Title = taskDto.Title;
+			taskItem.Description = taskDto.Description;
+			taskItem.IsCompleted = taskDto.IsCompleted;
+
+			try
+			{
+				await _context.SaveChangesAsync();
+			}
 			catch (DbUpdateConcurrencyException)
 			{
-				if (!TaskItemExists(id))
-				{
-					return NotFound(new { message = "Task item not found." });
-				}
 				return StatusCode(500, new { message = "Database error occurred." });
 			}
 
-			return NoContent();
-        }
+			return Ok(new { message = "Task updated successfully." });
+		}
 
-		// POST: api/TaskItems
-		// To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
 		[HttpPost]
 		public async Task<ActionResult<TaskItem>> PostTaskItem(TaskItemDto taskDto)
 		{
+			if (taskDto.Priority != "High" && taskDto.Priority != "Medium" && taskDto.Priority != "Low")
+			{
+				return BadRequest(new { message = "Priority must be High, Medium, or Low." });
+			}
+
 			var taskItem = new TaskItem
 			{
 				Title = taskDto.Title,
 				Description = taskDto.Description,
+				Priority = taskDto.Priority,
 				IsCompleted = false
 			};
 
