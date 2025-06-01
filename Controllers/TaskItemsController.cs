@@ -77,7 +77,7 @@ namespace Task_Management.Controllers
 				return NotFound(new { message = "Task item not found." });
 			}
 
-			// Update only the allowed fields
+			
 			taskItem.Title = taskDto.Title;
 			taskItem.Description = taskDto.Description;
 			taskItem.IsCompleted = taskDto.IsCompleted;
@@ -116,7 +116,7 @@ namespace Task_Management.Controllers
 			return CreatedAtAction(nameof(GetTaskItem), new { id = taskItem.Id }, taskItem);
 		}
 
-		// DELETE: api/TaskItems/5
+		
 		[HttpDelete("{id}")]
 		public async Task<IActionResult> DeleteTaskItem(int id)
 		{
